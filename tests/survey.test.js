@@ -1423,6 +1423,32 @@ function rowOf(r) {
     await t.ctx.close();
   });
 
+  await check("the receiver starts a new tab when its columns change, keeping the old answers", async () => {
+    // A stand-in for the spreadsheet: tabs of rows.
+    const tabs = [];
+    const tab = (name) => ({ name, rows: [], frozen: 0,
+      getLastRow() { return this.rows.length; }, getLastColumn() { return this.rows[0] ? this.rows[0].length : 0; },
+      getRange(r, c, nr, nc) { const me = this; return { getValues: () => [me.rows[0].slice(0, nc).concat(Array(Math.max(0, nc - me.rows[0].length)).fill(""))] }; },
+      appendRow(x) { this.rows.push(x.slice()); }, setFrozenRows(n) { this.frozen = n; }, clear() { this.rows = []; }, setName(n) { this.name = n; } });
+    global.SpreadsheetApp = { getActiveSpreadsheet: () => ({
+      getSheetByName: (n) => tabs.find((x) => x.name === n) || null,
+      insertSheet: (n, at) => { const x = tab(n); if (at === 0) tabs.unshift(x); else tabs.push(x); return x; } }) };
+    try {
+      const h = receiver.headers_();
+      // An earlier version's header row, with one answer under it.
+      const old = tab("Responses"); old.rows.push(h.slice(0, -10), ["an earlier answer"]); tabs.push(old);
+      const sh = receiver.sheet_();
+      assert.deepStrictEqual(sh.rows[0], h, "the new tab has this version's header row");
+      assert.strictEqual(tabs.length, 2, "the earlier tab is kept");
+      assert.ok(/^Responses \(earlier columns/.test(old.name) && old.rows.length === 2, "the earlier tab is renamed, with its answers");
+      // A tab whose header row matches is used as it is.
+      assert.strictEqual(receiver.sheet_(), sh, "a matching tab is used as it is");
+      // A tab with only an earlier header row gets the new one.
+      tabs.length = 0; const bare = tab("Responses"); bare.rows.push(["old"]); tabs.push(bare);
+      assert.strictEqual(receiver.sheet_(), bare); assert.deepStrictEqual(bare.rows, [h], "an empty tab just gets the new header row");
+    } finally { delete global.SpreadsheetApp; }
+  });
+
   await check("the receiver refuses records without consent, age, or the current version", async () => {
     const ok = { consent: true, age18: true, variant: "since", version: "since-v1" };
     assert.strictEqual(receiver.refusal_(ok), "");

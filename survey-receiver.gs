@@ -17,7 +17,8 @@
  *
  * Updating from an earlier version
  * 1. Replace the old code with this file and save.
- * 2. Run setup(). It adds the "Responses" tab; earlier tabs are left as they are.
+ * 2. Run setup(). If the columns changed, it renames the old "Responses" tab, keeping its rows, and starts a new one
+ *    with the new header row; a tab with no answers yet just gets the new header row.
  * 3. Deploy > Manage deployments > edit the web app > Version: New version > Deploy. The web app URL stays the same.
  *
  * The page posts plain text (no CORS preflight) and cannot read the reply,
@@ -284,13 +285,28 @@ function reply_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
+/** The Responses tab, with this version's header row. If the tab's header row is from an earlier
+ *  version, the columns would no longer match: a tab with no answers gets the new header row, and a tab
+ *  with answers is renamed and kept as it is, and a new Responses tab starts with the new header row. */
 function sheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var h = headers_();
   var sh = ss.getSheetByName(SHEET_NAME) || ss.insertSheet(SHEET_NAME);
-  if (sh.getLastRow() === 0) { sh.appendRow(headers_()); sh.setFrozenRows(1); }
+  if (sh.getLastRow() > 0) {
+    var top = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getValues()[0];
+    while (top.length && top[top.length - 1] === "") top.pop();
+    if (top.join("\u0001") !== h.join("\u0001")) {
+      if (sh.getLastRow() === 1) sh.clear();
+      else {
+        sh.setName(SHEET_NAME + " (earlier columns, " + new Date().toISOString().slice(0, 10) + " " + Date.now() % 100000 + ")");
+        sh = ss.insertSheet(SHEET_NAME, 0);
+      }
+    }
+  }
+  if (sh.getLastRow() === 0) { sh.appendRow(h); sh.setFrozenRows(1); }
   return sh;
 }
 
 function setup() { sheet_(); }
 
-if (typeof module !== "undefined") module.exports = { headers_: headers_, row_: row_, cell_: cell_, refusal_: refusal_, FIRSTS: FIRSTS, OFFICIAL_HOW: OFFICIAL_HOW, CHECK_POST: CHECK_POST, WHY_QUIET: WHY_QUIET, CONCERN: CONCERN, WORKS: WORKS, NETWORKS: NETWORKS, DATA_USE: DATA_USE, TWO_SIMS: TWO_SIMS, RELOAD_WHY: RELOAD_WHY, ONLINE_CAMPUS: ONLINE_CAMPUS, ONLINE_HOME: ONLINE_HOME, WOULD_USE: WOULD_USE, AWAY: AWAY, JARS: JARS, MISSED_LATE: MISSED_LATE, CLASS_NEWS: CLASS_NEWS, CLASS_HOW: CLASS_HOW, FORM_LIKE: FORM_LIKE, OFFICIAL_TELL: OFFICIAL_TELL, SCENARIO: SCENARIO, OFFICE: OFFICE, VISITS: VISITS, REACH_WHY: REACH_WHY, REACH_HARD: REACH_HARD, ASK_FIRST: ASK_FIRST, ANSWER_RIGHT: ANSWER_RIGHT, OLD_ANSWER: OLD_ANSWER, GUIDE_STEPS: GUIDE_STEPS, SENIOR_FIND: SENIOR_FIND, GET_AROUND: GET_AROUND, ORG_KINDS: ORG_KINDS, ORG_RUN: ORG_RUN, ORG_KEEP: ORG_KEEP, ORG_WHY: ORG_WHY, ORG_NONE: ORG_NONE, SUPPORT: SUPPORT, COMMUTE: COMMUTE, WHO_JOIN: WHO_JOIN, HEARD: HEARD, FB_POSTING: FB_POSTING, CANT_GO_OUT: CANT_GO_OUT, BUY_SELL: BUY_SELL };
+if (typeof module !== "undefined") module.exports = { headers_: headers_, sheet_: sheet_, row_: row_, cell_: cell_, refusal_: refusal_, FIRSTS: FIRSTS, OFFICIAL_HOW: OFFICIAL_HOW, CHECK_POST: CHECK_POST, WHY_QUIET: WHY_QUIET, CONCERN: CONCERN, WORKS: WORKS, NETWORKS: NETWORKS, DATA_USE: DATA_USE, TWO_SIMS: TWO_SIMS, RELOAD_WHY: RELOAD_WHY, ONLINE_CAMPUS: ONLINE_CAMPUS, ONLINE_HOME: ONLINE_HOME, WOULD_USE: WOULD_USE, AWAY: AWAY, JARS: JARS, MISSED_LATE: MISSED_LATE, CLASS_NEWS: CLASS_NEWS, CLASS_HOW: CLASS_HOW, FORM_LIKE: FORM_LIKE, OFFICIAL_TELL: OFFICIAL_TELL, SCENARIO: SCENARIO, OFFICE: OFFICE, VISITS: VISITS, REACH_WHY: REACH_WHY, REACH_HARD: REACH_HARD, ASK_FIRST: ASK_FIRST, ANSWER_RIGHT: ANSWER_RIGHT, OLD_ANSWER: OLD_ANSWER, GUIDE_STEPS: GUIDE_STEPS, SENIOR_FIND: SENIOR_FIND, GET_AROUND: GET_AROUND, ORG_KINDS: ORG_KINDS, ORG_RUN: ORG_RUN, ORG_KEEP: ORG_KEEP, ORG_WHY: ORG_WHY, ORG_NONE: ORG_NONE, SUPPORT: SUPPORT, COMMUTE: COMMUTE, WHO_JOIN: WHO_JOIN, HEARD: HEARD, FB_POSTING: FB_POSTING, CANT_GO_OUT: CANT_GO_OUT, BUY_SELL: BUY_SELL };
